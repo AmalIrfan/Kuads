@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <cmath>
 #include <sstream>
 #include <string>
+#include <cstdint>
 
 namespace rl {
 #include "raylib.h"
@@ -28,6 +30,13 @@ protected:
 	Vector2i palleteSize;
 	rl::Color *pallete;
 
+	const uint32_t defaultPallete[8*4] = {
+		0x000000FF, 0x400000FF, 0x401000FF, 0x404000FF, 0x004000FF, 0x004040FF, 0x000040FF, 0x400040FF,
+		0x555555FF, 0x800000FF, 0x802000FF, 0x808000FF, 0x008000FF, 0x008080FF, 0x000080FF, 0x800080FF,
+		0xAAAAAAFF, 0xC00000FF, 0xC03000FF, 0xC0C000FF, 0x00C000FF, 0x00C0C0FF, 0x0000C0FF, 0xC000C0FF,
+		0xFFFFFFFF, 0xFF0000FF, 0xFF4000FF, 0xFFFF00FF, 0x00FF00FF, 0x00FFFFFF, 0x0000FFFF, 0xFF00FFFF,
+	};
+
 public:
 	Renderer(int w, int h, std::string t, int fps)
 			: width(w), height(h), title(t), fps(fps) {
@@ -36,7 +45,7 @@ public:
 			}
 	void draw() {
 		rl::BeginDrawing();
-		rl::ClearBackground(rl::GetColor(0xFF0000FF));
+		rl::ClearBackground(rl::GetColor(0x202020FF));
 		// draw the canvas
 		for (int i = 0; i < canvasSize.x; i++) {
 			for (int j = 0; j < canvasSize.y; j++) {
@@ -114,23 +123,49 @@ public:
 		canvasCursor = {0, 0};
 		palleteSize = {8, 4};
 		palleteCursor = {0, 0};
-		loadCanvas();
-		loadPallete();
-	}
-	void loadCanvas() {
-		rl::Image img = rl::LoadImage("canvas.png");
 		canvas = new rl::Color[canvasSize.x * canvasSize.y];
+		if (!loadCanvas()) {
+			std::fill(canvas, canvas + canvasSize.x * canvasSize.y, rl::GetColor(0x00000000));
+		}
+		pallete = new rl::Color[palleteSize.x * palleteSize.y];
+		if (!loadPallete()) {
+			for(int y = 0; y < palleteSize.y; y++) {
+				for(int x = 0; x < palleteSize.x; x++) {
+					pallete[x + y * palleteSize.x] = rl::GetColor(defaultPallete[y * palleteSize.x + x]);
+				}
+			}
+			savePallete();
+		}
+	}
+	bool loadCanvas() {
+		if (!rl::FileExists("canvas.png")) {
+			return false;
+		}
+		rl::Image img = rl::LoadImage("canvas.png");
+		if (img.width != canvasSize.x || img.height != canvasSize.y) {
+			rl::UnloadImage(img);
+			return false;
+		}
+		rl::Color* colors = rl::LoadImageColors(img);
 		for (int i = 0; i < canvasSize.x; i++) {
 			for (int j = 0; j < canvasSize.y; j++) {
-				canvas[i + j * canvasSize.x] = ((rl::Color*)img.data)[i + j * canvasSize.x];
+				canvas[i + j * canvasSize.x] = colors[i + j * canvasSize.x];
 			}
 		}
 		rl::UnloadImage(img);
+		rl::UnloadImageColors(colors);
+		return true;
 	}
-	void loadPallete() {
+	bool loadPallete() {
 		rl::Image img = rl::LoadImage("pallete.png");
+		if (!rl::FileExists("pallete.png")) {
+			return false;
+		}
+		if (img.width != palleteSize.x || img.height != palleteSize.y) {
+			rl::UnloadImage(img);
+			return false;
+		}
 		rl::Color* colors = rl::LoadImageColors(img);
-		pallete = new rl::Color[palleteSize.x * palleteSize.y];
 		for (int i = 0; i < palleteSize.x; i++) {
 			for (int j = 0; j < palleteSize.y; j++) {
 				pallete[i + j * palleteSize.x] = colors[i + j * palleteSize.x];
@@ -138,6 +173,7 @@ public:
 		}
 		rl::UnloadImage(img);
 		rl::UnloadImageColors(colors);
+		return true;
 	}
 	~App() {
 		delete[] canvas;
@@ -151,7 +187,15 @@ public:
 			.format = rl::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
 
 		rl::ExportImage(img, "canvas.png");
-		saved = true;
+	}
+	void savePallete() {
+		rl::Image img = {.data = pallete,
+			.width = palleteSize.x,
+			.height = palleteSize.y,
+			.mipmaps = 1,
+			.format = rl::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+
+		rl::ExportImage(img, "pallete.png");
 	}
 	void update() {
 		auto IsKeyPressedOrRepeat = [](rl::KeyboardKey key) {
@@ -215,8 +259,10 @@ public:
 			canvas[canvasCursor.x + canvasCursor.y * canvasSize.x] = rl::GetColor(0x00000000);
 		}
 		if (sinceInput > 120) {
-			if (!saved)
+			if (!saved) {
 				saveCanvas();
+				saved = true;
+			}
 		} else if (saved) {
 			saved = false;
 		}

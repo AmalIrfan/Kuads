@@ -8,6 +8,7 @@ To see how to build the project, see [BUILD](./BUILD.md).
 
 - Canvas
   - Loaded from `canvas.png`
+  - Generates a blank canvas if file is not found
   - Assumed size `16x16`
 
   - <kbd>WASD</kbd>: Move cursor
@@ -16,6 +17,8 @@ To see how to build the project, see [BUILD](./BUILD.md).
   - <kbd>Ctrl</kbd>: Clear pixel
 - Pallete (Select Color)
   - Loaded from `pallete.png`
+  - Auto generated if it doesn't exist
+
   - Assumed size `8x4`
 
   - <kbd>Arrow Keys</kbd>: Move cursor

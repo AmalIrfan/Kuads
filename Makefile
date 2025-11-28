@@ -23,6 +23,10 @@ else
 	$(error Invalid platform)
 endif
 
+ifdef RELEASE
+	EXTRA_CXXFLAGS+=-Os
+endif
+
 define make_build_dir
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@) && echo "*" > $(dir $@)/.gitignore
 endef
