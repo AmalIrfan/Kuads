@@ -22,24 +22,18 @@ protected:
 	Vector2i canvasOffset;
 	Vector2i canvasSize;
 	int canvasScale;
-	Vector2i cursor;
+	Vector2i canvasCursor;
 	rl::Color *canvas;
+	Vector2i palleteCursor;
+	Vector2i palleteSize;
+	rl::Color *pallete;
 
 public:
 	Renderer(int w, int h, std::string t, int fps)
 			: width(w), height(h), title(t), fps(fps) {
 		rl::InitWindow(w, h, t.c_str());
 		rl::SetTargetFPS(fps);
-		canvasSize = {16, 16};
-		canvasScale = 16;
-		canvasOffset = {width / 2 - canvasSize.x * canvasScale / 2,
-						height / 2 - canvasSize.y * canvasScale / 2};
-		cursor = {0, 0};
-		canvas = new rl::Color[canvasSize.x * canvasSize.y];
-		std::fill(canvas, canvas + canvasSize.x * canvasSize.y,
-			rl::GetColor(0x00000000));
-	}
-	~Renderer() { delete[] canvas; }
+			}
 	void draw() {
 		rl::BeginDrawing();
 		rl::ClearBackground(rl::GetColor(0xFF0000FF));
@@ -58,8 +52,8 @@ public:
 		rl::DrawRectangleLines(canvasOffset.x, canvasOffset.y,
 			canvasSize.x * canvasScale,
 			canvasSize.y * canvasScale, rl::GetColor(0xFFFF00FF));
-		rl::DrawRectangleLines(cursor.x * canvasScale + canvasOffset.x,
-			cursor.y * canvasScale + canvasOffset.y, canvasScale, canvasScale,
+		rl::DrawRectangleLines(canvasCursor.x * canvasScale + canvasOffset.x,
+			canvasCursor.y * canvasScale + canvasOffset.y, canvasScale, canvasScale,
 			rl::GetColor(0x00FFFFFF));
 
 		std::stringstream ss;
@@ -78,10 +72,29 @@ public:
 			ss.str("");
 		}
 		// display the cursor coords in the right corner of the canvas
-		ss << std::hex << std::uppercase << cursor.x << cursor.y;
+		ss << std::hex << std::uppercase << canvasCursor.x << canvasCursor.y;
 		rl::DrawText(ss.str().c_str(), canvasSize.x * canvasScale + canvasOffset.x,
 			canvasSize.y * canvasScale + canvasOffset.y, 16,
 			rl::GetColor(0xFFFF00FF));
+		// display pallete left of the canvas
+		for (int i = 0; i < palleteSize.x; i++) {
+			for (int j = 0; j < palleteSize.y; j++) {
+				rl::DrawRectangle((i - palleteSize.x - 2) * canvasScale + canvasOffset.x,
+					j * canvasScale + canvasOffset.y, canvasScale,
+					canvasScale, pallete[i + j * palleteSize.x]);
+				rl::DrawRectangleLines(
+					(i - palleteSize.x - 2) * canvasScale + canvasOffset.x,
+					j * canvasScale + canvasOffset.y,
+					canvasScale, canvasScale,
+					rl::GetColor(0x000000FF));
+			}
+		}
+		// display the pallete cursor
+		rl::DrawRectangleLines(
+			(palleteCursor.x - palleteSize.x - 2) * canvasScale + canvasOffset.x,
+			palleteCursor.y * canvasScale + canvasOffset.y,
+			canvasScale, canvasScale,
+			rl::GetColor(0x00FFFFFF));
 		rl::EndDrawing();
 	}
 };
@@ -93,8 +106,44 @@ protected:
 
 public:
 	App()
-			: Renderer(640, 480, "Hello, World!", 60), sinceInput(0), saved(false) {}
-	void save() {
+			: Renderer(640, 480, "Hello, World!", 60), sinceInput(0), saved(false) {
+		canvasSize = {16, 16};
+		canvasScale = 16;
+		canvasOffset = {width / 2 - canvasSize.x * canvasScale / 2,
+						height / 2 - canvasSize.y * canvasScale / 2};
+		canvasCursor = {0, 0};
+		palleteSize = {8, 4};
+		palleteCursor = {0, 0};
+		loadCanvas();
+		loadPallete();
+	}
+	void loadCanvas() {
+		rl::Image img = rl::LoadImage("canvas.png");
+		canvas = new rl::Color[canvasSize.x * canvasSize.y];
+		for (int i = 0; i < canvasSize.x; i++) {
+			for (int j = 0; j < canvasSize.y; j++) {
+				canvas[i + j * canvasSize.x] = ((rl::Color*)img.data)[i + j * canvasSize.x];
+			}
+		}
+		rl::UnloadImage(img);
+	}
+	void loadPallete() {
+		rl::Image img = rl::LoadImage("pallete.png");
+		rl::Color* colors = rl::LoadImageColors(img);
+		pallete = new rl::Color[palleteSize.x * palleteSize.y];
+		for (int i = 0; i < palleteSize.x; i++) {
+			for (int j = 0; j < palleteSize.y; j++) {
+				pallete[i + j * palleteSize.x] = colors[i + j * palleteSize.x];
+			}
+		}
+		rl::UnloadImage(img);
+		rl::UnloadImageColors(colors);
+	}
+	~App() {
+		delete[] canvas;
+		delete[] pallete;
+	}
+	void saveCanvas() {
 		rl::Image img = {.data = canvas,
 			.width = canvasSize.x,
 			.height = canvasSize.y,
@@ -111,65 +160,89 @@ public:
 		sinceInput++;
 		if (IsKeyPressedOrRepeat(rl::KEY_W)) {
 			sinceInput = 0;
-			cursor.y--;
+			canvasCursor.y--;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_S)) {
 			sinceInput = 0;
-			cursor.y++;
+			canvasCursor.y++;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_A)) {
 			sinceInput = 0;
-			cursor.x--;
+			canvasCursor.x--;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_D)) {
 			sinceInput = 0;
-			cursor.x++;
+			canvasCursor.x++;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_Q)) {
 			sinceInput = 0;
-			cursor.y--;
-			cursor.x--;
+			canvasCursor.y--;
+			canvasCursor.x--;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_E)) {
 			sinceInput = 0;
-			cursor.y--;
-			cursor.x++;
+			canvasCursor.y--;
+			canvasCursor.x++;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_Z)) {
 			sinceInput = 0;
-			cursor.y++;
-			cursor.x--;
+			canvasCursor.y++;
+			canvasCursor.x--;
 		}
 		if (IsKeyPressedOrRepeat(rl::KEY_C)) {
 			sinceInput = 0;
-			cursor.y++;
-			cursor.x++;
+			canvasCursor.y++;
+			canvasCursor.x++;
 		}
-		if (cursor.x < 0) {
-			cursor.x = canvasSize.x - 1;
+		if (canvasCursor.x < 0) {
+			canvasCursor.x = canvasSize.x - 1;
 		}
-		if (cursor.y < 0) {
-			cursor.y = canvasSize.y - 1;
+		if (canvasCursor.y < 0) {
+			canvasCursor.y = canvasSize.y - 1;
 		}
-		if (cursor.x >= canvasSize.x) {
-			cursor.x = 0;
+		if (canvasCursor.x >= canvasSize.x) {
+			canvasCursor.x = 0;
 		}
-		if (cursor.y >= canvasSize.y) {
-			cursor.y = 0;
+		if (canvasCursor.y >= canvasSize.y) {
+			canvasCursor.y = 0;
 		}
 		if (IsKeyDown(rl::KEY_RIGHT_SHIFT) | IsKeyDown(rl::KEY_LEFT_SHIFT)) {
 			sinceInput = 0;
-			canvas[cursor.x + cursor.y * canvasSize.x] = rl::GetColor(0xFFFFFFFF);
+			canvas[canvasCursor.x + canvasCursor.y * canvasSize.x] = pallete[palleteCursor.x + palleteCursor.y * palleteSize.x];
 		}
 		if (IsKeyDown(rl::KEY_RIGHT_CONTROL) | IsKeyDown(rl::KEY_LEFT_CONTROL)) {
 			sinceInput = 0;
-			canvas[cursor.x + cursor.y * canvasSize.x] = rl::GetColor(0xFF000000);
+			canvas[canvasCursor.x + canvasCursor.y * canvasSize.x] = rl::GetColor(0x00000000);
 		}
 		if (sinceInput > 120) {
 			if (!saved)
-				save();
+				saveCanvas();
 		} else if (saved) {
 			saved = false;
+		}
+		if (IsKeyPressedOrRepeat(rl::KEY_UP)) {
+			palleteCursor.y--;
+		}
+		if (IsKeyPressedOrRepeat(rl::KEY_DOWN)) {
+			palleteCursor.y++;
+		}
+		if (IsKeyPressedOrRepeat(rl::KEY_LEFT)) {
+			palleteCursor.x--;
+		}
+		if (IsKeyPressedOrRepeat(rl::KEY_RIGHT)) {
+			palleteCursor.x++;
+		}
+		if (palleteCursor.x < 0) {
+			palleteCursor.x = palleteSize.x - 1;
+		}
+		if (palleteCursor.y < 0) {
+			palleteCursor.y = palleteSize.y - 1;
+		}
+		if (palleteCursor.x >= palleteSize.x) {
+			palleteCursor.x = 0;
+		}
+		if (palleteCursor.y >= palleteSize.y) {
+			palleteCursor.y = 0;
 		}
 	}
 	void run() {

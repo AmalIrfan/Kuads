@@ -13,4 +13,4 @@ To see how to build the project, see [BUILD](./BUILD.md).
 
 ## Example
 
-see: [canvas.png](./canvas.png)
+![screenshot.png](./screenshot.png)
